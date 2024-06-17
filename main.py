@@ -101,7 +101,7 @@ def main() -> None:
         logger.warning("file already downloaded, exiting")
         return
 
-    logger.info("download file:", fileLink)
+    logger.info(f"download file: {fileLink}")
     r = httpx.get(downloadLink, follow_redirects=True)
     with open(downloadedFile, 'wb') as f:
         f.write(r.content)
@@ -125,14 +125,14 @@ def main() -> None:
 
     ips = pd.read_csv("downloads/ipv6-udp-2024-05-29.csv", delimiter=",")
 
-    logger.info("got %d ips, removing duplicates..." % len(ips))
+    logger.info("got {0} ips, removing duplicates...".format(len(ips)))
 
     ips = ips[ips["success"] == 1][
         # for some reason saddr is the original destination
         ["saddr"]
     ].drop_duplicates(ignore_index=True, inplace=False)
 
-    logger.info("will write %d ips to %s" % (len(ips), outputTxt))
+    logger.info("will write {0} ips to {1}".format(len(ips), outputTxt))
 
     with open(outputTxt, "w") as f:
         for index, row in ips.iterrows():
