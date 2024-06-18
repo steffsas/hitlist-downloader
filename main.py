@@ -35,7 +35,7 @@ def main() -> None:
     logger.info("start")
 
     shouldSchedule = os.getenv(SCHEDULE_ENV)
-    if shouldSchedule == None:
+    if shouldSchedule == None or shouldSchedule.lower() != "true":
         download()
         return
 
