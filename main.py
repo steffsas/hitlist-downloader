@@ -1,3 +1,4 @@
+import time
 import httpx
 import os
 import lzma
@@ -5,7 +6,9 @@ import re
 import pandas as pd
 import logging
 import sys
+import schedule
 
+from pathlib import Path
 from datetime import datetime
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
@@ -14,26 +17,46 @@ URL_ENV = "URL"
 LOG_FOLDER_ENV = "LOG_FOLDER"
 DOWNLOAD_FOLDER_ENV = "DOWNLOAD_FOLDER"
 OUTPUT_FOLDER_ENV = "OUTPUT_FOLDER"
+SCHEDULE_ENV = "SCHEDULE"
+SCHEDULE_DAILY_AT_ENV = "SCHEDULE_DAILY_AT"
+
+DEFAULT_SCHEDULE_TIME = "00:30:00"
+DEFAULT_LOG_FOLDER = "logs"
 
 logger = logging.getLogger(__name__)
 
 def main() -> None:
+    # set logger config
+    prepareLogger()
+
+    # let's load the .env variables
     load_dotenv(".env", override=False)
 
+    logger.info("start")
+
+    shouldSchedule = os.getenv(SCHEDULE_ENV)
+    if shouldSchedule == None:
+        download()
+        return
+
+    scheduleDailyAt = os.getenv(SCHEDULE_DAILY_AT_ENV)
+    if scheduleDailyAt == None:
+        logger.warning(f"no schedule time found, fallback to schedule at {DEFAULT_SCHEDULE_TIME} every day")
+        scheduleDailyAt = DEFAULT_SCHEDULE_TIME
+
+    logger.info(f"start scheduling download daily at {scheduleDailyAt}")
+
+    # let's schedule the download every day at the specified time
+    schedule.every().day.at(scheduleDailyAt).do(download)
+
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
+
+def download():
+    logging.info("start download")
+
     today = datetime.now().strftime("%Y-%m-%d")
-
-    logFolder = os.getenv(LOG_FOLDER_ENV)
-    if logFolder == None:
-        logFolder = "logs"
-
-    if not os.path.exists(logFolder):
-        os.makedirs(logFolder)
-
-    logging.basicConfig(
-        filename=f"{logFolder}/{today}.log", level=logging.INFO,
-        format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
-    )
-    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
 
     url = os.getenv(URL_ENV)
     if url == None:
@@ -140,6 +163,32 @@ def main() -> None:
 
     logger.info("done")
 
+def prepareLogger():
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    logFolder = os.getenv(LOG_FOLDER_ENV)
+    if logFolder == None:
+        logFolder = DEFAULT_LOG_FOLDER
+
+    # create log folder if not exists
+    if not os.path.exists(logFolder):
+        os.makedirs(logFolder)
+
+    logFileName = f"{logFolder}/{today}.log"
+
+    # create log file if not exists
+    Path(logFileName).touch()
+
+    file_handler = logging.FileHandler(filename=logFileName)
+    stdout_handler = logging.StreamHandler(stream=sys.stdout)
+    handlers = [file_handler, stdout_handler]
+
+    logging.basicConfig(
+        handlers=handlers,
+        level=logging.INFO,
+        format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
+    )
+
 def receiveSoup(url: str) -> BeautifulSoup:
     response = httpx.get(url, follow_redirects=True)
     if response.status_code != 200:
@@ -158,7 +207,6 @@ def getSortedLinks(soup: BeautifulSoup) -> list[tuple[str, str]]:
     # let's get the latest link
     sortedLinks = sorted(links, key=lambda x: x[1], reverse=True)
     return sortedLinks
-    
 
 def extractDateFromFilename(filename: str) -> str:
     # Define the regular expression pattern to match YYYY-MM-DD format

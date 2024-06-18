@@ -1,5 +1,9 @@
 FROM python:3.12-alpine
 
+# set time zone for cron jobs
+RUN apk add --no-cache tzdata
+ENV TZ=Europe/Berlin
+
 # first layer should contain the dependencies
 COPY ./requirements.txt /app/requirements.txt
 
