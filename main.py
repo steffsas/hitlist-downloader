@@ -146,8 +146,6 @@ def download():
     ips = pd.read_csv(outputFile)
     outputTxt = f"{outputFolder}/ipv6-udp-{date}.txt"
 
-    ips = pd.read_csv("downloads/ipv6-udp-2024-05-29.csv", delimiter=",")
-
     logger.info("got {0} ips, removing duplicates...".format(len(ips)))
 
     ips = ips[ips["success"] == 1][
