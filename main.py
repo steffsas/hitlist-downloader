@@ -12,6 +12,7 @@ from pathlib import Path
 from datetime import datetime
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
+from ipaddress import ip_address, IPv6Address
 
 URL_ENV = "URL"
 LOG_FOLDER_ENV = "LOG_FOLDER"
@@ -146,9 +147,12 @@ def download():
     ips = pd.read_csv(outputFile)
     outputTxt = f"{outputFolder}/ipv6-udp-{date}.txt"
 
+    # let's prepare the columns, add column names if necessary
+    ips = prepareColumns(ips)
+
     logger.info("got {0} ips, removing duplicates...".format(len(ips)))
 
-    ips = ips[ips["success"] == 1][
+    ips = ips[(ips["success"] == 1) | (ips["success"] == "1")][
         # for some reason saddr is the original destination
         ["saddr"]
     ].drop_duplicates(ignore_index=True, inplace=False)
@@ -220,6 +224,41 @@ def extractDateFromFilename(filename: str) -> str:
     else:
         logger.error("no date found in filename")
         return ""
+
+def prepareColumns(df: pd.DataFrame) -> pd.DataFrame:
+    DEFAULT_COLUMN_LEN = 13
+
+    if "success" not in df.columns or "saddr" not in df.columns:
+        ipv6_dest = df.columns[0]
+        success = df.columns[-1]
+
+        # check whether entry is an ipv6 address
+        if isIpv6(ipv6_dest) and (success == "1" or success == 1):
+            logger.info("indicated header as valid hit, let's add it to the dataframe...")
+            df.loc[len(df)] = [col for col in df.columns]
+
+        if len(df.columns) == DEFAULT_COLUMN_LEN:
+            df.columns = ['saddr', 'daddr', 'ipid', 'ttl', 'sport', 'dport', 'classification',
+                'repeat', 'cooldown', 'timestamp_ts', 'timestamp_us', 'data',
+                'success']
+        else:
+            # we define the last column as the success column
+            # and the first column as the ip address
+            cols = [f"col{i}" for i in range(len(df.columns))]
+            cols[0] = "saddr"
+            cols[-1] = "success"
+
+            df.columns = cols
+    return df
+
+def isIpv6(addr: str) -> bool:
+    try:
+        addr = ip_address(addr)
+        if type(addr) is IPv6Address:
+            return True
+        return False
+    except ValueError:
+        return False
 
 if __name__ == "__main__":
     main()

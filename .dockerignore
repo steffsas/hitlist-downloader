@@ -5,3 +5,4 @@ output/
 .gitignore
 LICENSE
 README.md
+.vscode/
