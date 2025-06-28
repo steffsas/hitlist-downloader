@@ -9,7 +9,7 @@ idna==3.10
 numpy==2.3.1
 pandas==2.3.0
 python-dateutil==2.9.0.post0
-python-dotenv==1.1.0
+python-dotenv==1.1.1
 pytz==2025.2
 schedule==1.2.2
 six==1.17.0
